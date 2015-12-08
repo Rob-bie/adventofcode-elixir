@@ -91,7 +91,7 @@ defmodule AdventOfCode.DaySix do
 
   defp format_input([_, "on", c, _, d]),  do: to_format(:turn_on, c, d)
   defp format_input([_, "off", c, _, d]), do: to_format(:turn_off, c, d)
-  defp format_input(["toggle", c, _, d]), do:to_format(:toggle, c, d)
+  defp format_input(["toggle", c, _, d]), do: to_format(:toggle, c, d)
 
   defp to_format(type, c, d) do
     [x, y]   = String.split(c, ",") |> Enum.map(&String.to_integer/1)
