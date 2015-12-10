@@ -54,14 +54,14 @@ defmodule AdventOfCode.DaySeven do
 
   defp eval_tree({wire, {"->", value}}) do
     value = node_or_value(value) |> eval_tree
-    memoize(wire, value)
+    update_node_table(wire, value)
     value
   end
 
   defp eval_tree({wire, {"NOT", value}}) do
     value = node_or_value(value) |> eval_tree
     value = @bitwise_table["NOT"].(value)
-    memoize(wire, value)
+    update_node_table(wire, value)
     value
   end
 
@@ -69,12 +69,8 @@ defmodule AdventOfCode.DaySeven do
     l_value = node_or_value(l_value) |> eval_tree
     r_value = node_or_value(r_value) |> eval_tree
     value = @bitwise_table[operator].(l_value, r_value)
-    memoize(wire, value)
+    update_node_table(wire, value)
     value
-  end
-
-  defp memoize(wire, value) do
-    :ets.insert(:node_table, {wire, value})
   end
 
   defp node_or_value(value) when is_integer(value) do
