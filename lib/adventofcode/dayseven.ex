@@ -4,7 +4,7 @@ defmodule AdventOfCode.DaySeven do
 
   @input "./lib/adventofcode/resource/day7.txt"
 
-  @fun_table %{
+  @bitwise_table %{
     "NOT"    => &:erlang.bnot/1,
     "AND"    => &:erlang.band/2,
     "OR"     => &:erlang.bor/2,
@@ -12,67 +12,89 @@ defmodule AdventOfCode.DaySeven do
     "RSHIFT" => &:erlang.bsr/2
   }
 
-  def parse do
+  def what_is_provided_to?(root) do
+    node_or_value(root) |> eval_tree
+  end
+
+  def initialize_table do
+    :ets.new(:node_table, [:named_table, :set])
+    parse_circuit
+  end
+
+  def reset_circuit do
+    :ets.delete(:node_table)
+    initialize_table
+  end
+
+  defp parse_circuit do
     @input
-    |> File.read!
-    |> String.split("\n", trim: true)
-    |> Enum.map(&String.split/1)
+    |> File.stream!
+    |> Stream.map(&String.split/1)
+    |> Enum.each(&parse_circuit/1)
   end
 
-  defp solve do
-    solve(parse, %{}, [])
+  defp parse_circuit([value, provided_to, wire]) do
+    node = {wire, {provided_to, node_value(value)}}
+    update_node_table(wire, node)
   end
 
-  defp solve([], table, []), do: table
-  defp solve([], table, is), do: solve(is, table, [])
-
-  defp solve([i=[n, _, v]|rest], table, instr) do
-    case Integer.parse(n) do
-      {i, _} -> solve(rest, Dict.put(table, v, i), instr)
-      :error ->
-        case Dict.has_key?(table, n) do
-          true ->
-            n = Dict.get(table, n)
-            solve(rest, Dict.put(table, v, n), instr)
-          false -> solve(rest, table, [i|instr])
-        end
-    end
+  defp parse_circuit([not_operator, value, _provided_to, wire]) do
+    node = {wire, {not_operator, node_value(value)}}
+    update_node_table(wire, node)
   end
 
-
-  defp solve([i=[op, n, _, r]|rest], table, instr) do
-    case table[n] do
-      nil -> solve(rest, table, [i|instr])
-      n   ->
-        table = Dict.put(table, r, apply(@fun_table[op], [n]))
-        solve(rest, table, instr)
-    end
+  defp parse_circuit([l_value, operator, r_value, _provided_to, wire]) do
+    node = {wire, {operator, node_value(l_value), node_value(r_value)}}
+    update_node_table(wire, node)
   end
 
-  defp solve([i=[n, op, v, _, r]|rest], table, instr) do
-    [n, v] = to_value(n, v)
-    case has_keys?(table, [n, v]) do
-      true  ->
-        operands = get_keys(table, [n, v])
-        table = Dict.put(table, r, apply(@fun_table[op], operands))
-        solve(rest, table, instr)
-      false -> solve(rest, table, [i|instr])
-    end
+  defp eval_tree(integer) when is_integer(integer) do
+    integer
   end
 
-  defp get_keys(t, keys) do
-    Enum.map(keys, fn(k) -> if is_binary(k), do: Dict.get(t, k), else: k end)
+  defp eval_tree({wire, {"->", value}}) do
+    value = node_or_value(value) |> eval_tree
+    memoize(wire, value)
+    value
   end
 
-  defp has_keys?(t, keys) do
-    Enum.all?(keys, &(Dict.has_key?(t, &1) or is_integer(&1)))
+  defp eval_tree({wire, {"NOT", value}}) do
+    value = node_or_value(value) |> eval_tree
+    value = @bitwise_table["NOT"].(value)
+    memoize(wire, value)
+    value
   end
 
-  defp to_value(n, v) do
-    case {Integer.parse(n), Integer.parse(v)} do
-      {{x, _}, :error} -> [x, v]
-      {:error, {y, _}} -> [n, y]
-      {:error, :error} -> [n, v]
+  defp eval_tree({wire, {operator, l_value, r_value}}) do
+    l_value = node_or_value(l_value) |> eval_tree
+    r_value = node_or_value(r_value) |> eval_tree
+    value = @bitwise_table[operator].(l_value, r_value)
+    memoize(wire, value)
+    value
+  end
+
+  defp memoize(wire, value) do
+    :ets.insert(:node_table, {wire, value})
+  end
+
+  defp node_or_value(value) when is_integer(value) do
+    value
+  end
+
+  defp node_or_value(value) do
+    :ets.lookup(:node_table, value) |> extract_value
+  end
+
+  defp update_node_table(wire, node) do
+    :ets.insert(:node_table, {wire, node})
+  end
+
+  defp extract_value([{_key, value}]), do: value
+
+  defp node_value(value) do
+    case value =~ ~r/^\d+$/ do
+      true  -> String.to_integer(value)
+      false -> value
     end
   end
 
