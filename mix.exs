@@ -15,6 +15,7 @@ defmodule AdventOfCode.Mixfile do
   end
 
   defp deps do
-    [{:exprof,  "~> 0.2.0"}]
+    [{:exprof,  "~> 0.2.0"},
+     {:poison, "~> 1.5"}]
   end
 end
