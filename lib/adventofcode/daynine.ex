@@ -28,7 +28,7 @@ defmodule AdventOfCode.DayNine do
   defp get_paths(map) do
     Enum.reduce(map, [], fn({start, dests}, a) -> [get_paths(map, [start], dests, [])|a] end)
     |> List.flatten
-    |> Enum.chunk(Dict.size(map) - 1)
+    |> Enum.chunk(Kernel.map_size(map) - 1)
   end
 
   defp get_paths(map, visited, dests, path) do
